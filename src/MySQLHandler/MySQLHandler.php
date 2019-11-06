@@ -40,7 +40,7 @@ class MySQLHandler extends AbstractProcessingHandler
     /**
      * @var array default fields that are stored in db
      */
-    private $defaultfields = ['id', 'channel', 'level', 'message', 'date'];
+    private $defaultfields = ['id', 'channel', 'level', 'message', 'dateCreated'];
 
     /**
      * @var string[] additional fields to be stored in the database
@@ -89,8 +89,8 @@ class MySQLHandler extends AbstractProcessingHandler
         $this->pdo->exec(
             'CREATE TABLE IF NOT EXISTS `' . $this->table . '` '
                 . '(id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, '
-                . 'channel VARCHAR(255), level INTEGER, message LONGTEXT, date DATETIME, '
-                . 'INDEX(channel) USING HASH, INDEX(level) USING HASH, INDEX(date) USING BTREE)'
+                . 'channel VARCHAR(255), level INTEGER, message LONGTEXT, dateCreated DATETIME, '
+                . 'INDEX(channel) USING HASH, INDEX(level) USING HASH, INDEX(dateCreated) USING BTREE)'
         );
 
         //Read out actual columns
@@ -188,7 +188,7 @@ class MySQLHandler extends AbstractProcessingHandler
             'channel' => $record['channel'],
             'level' => $record['level'],
             'message' => $record['message'],
-            'date' => $record['datetime']->format('c'),
+            'dateCreated' => $record['datetime']->format('Y-m-d H:i:s'),
         ), $record['context']);
 
         // unset array keys that are passed put not defined to be stored, to prevent sql errors
