@@ -40,7 +40,7 @@ class MySQLHandler extends AbstractProcessingHandler
     /**
      * @var array default fields that are stored in db
      */
-    private $defaultfields = array('id', 'channel', 'level', 'message', 'time');
+    private $defaultfields = ['id', 'channel', 'level', 'message', 'date'];
 
     /**
      * @var string[] additional fields to be stored in the database
@@ -49,19 +49,19 @@ class MySQLHandler extends AbstractProcessingHandler
      * is expected along the message, and further the database needs to have these fields
      * as the values are stored in the column name $field.
      */
-    private $additionalFields = array();
+    private $additionalFields = [];
 
     /**
      * @var array
      */
-    private $fields           = array();
+    private $fields = [];
 
 
     /**
      * Constructor of this class, sets the PDO and calls parent constructor
      *
      * @param PDO $pdo                  PDO Connector for the database
-     * @param bool $table               Table in the database to store the logs in
+     * @param string $table               Table in the database to store the logs in
      * @param array $additionalFields   Additional Context Parameters to store in database
      * @param bool|int $level           Debug level which this handler should store
      * @param bool $bubble
@@ -69,11 +69,11 @@ class MySQLHandler extends AbstractProcessingHandler
     public function __construct(
         PDO $pdo = null,
         $table,
-        $additionalFields = array(),
+        $additionalFields = [],
         $level = Logger::DEBUG,
         $bubble = true
     ) {
-       if (!is_null($pdo)) {
+        if (!is_null($pdo)) {
             $this->pdo = $pdo;
         }
         $this->table = $table;
@@ -87,13 +87,15 @@ class MySQLHandler extends AbstractProcessingHandler
     private function initialize()
     {
         $this->pdo->exec(
-            'CREATE TABLE IF NOT EXISTS `'.$this->table.'` '
-            .'(id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, channel VARCHAR(255), level INTEGER, message LONGTEXT, time INTEGER UNSIGNED, INDEX(channel) USING HASH, INDEX(level) USING HASH, INDEX(time) USING BTREE)'
+            'CREATE TABLE IF NOT EXISTS `' . $this->table . '` '
+                . '(id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, '
+                . 'channel VARCHAR(255), level INTEGER, message LONGTEXT, date DATETIME, '
+                . 'INDEX(channel) USING HASH, INDEX(level) USING HASH, INDEX(date) USING BTREE)'
         );
 
         //Read out actual columns
         $actualFields = array();
-        $rs = $this->pdo->query('SELECT * FROM `'.$this->table.'` LIMIT 0');
+        $rs = $this->pdo->query('SELECT * FROM `' . $this->table . '` LIMIT 0');
         for ($i = 0; $i < $rs->columnCount(); $i++) {
             $col = $rs->getColumnMeta($i);
             $actualFields[] = $col['name'];
@@ -110,14 +112,14 @@ class MySQLHandler extends AbstractProcessingHandler
         //Remove columns
         if (!empty($removedColumns)) {
             foreach ($removedColumns as $c) {
-                $this->pdo->exec('ALTER TABLE `'.$this->table.'` DROP `'.$c.'`;');
+                $this->pdo->exec('ALTER TABLE `' . $this->table . '` DROP `' . $c . '`;');
             }
         }
 
         //Add columns
         if (!empty($addedColumns)) {
             foreach ($addedColumns as $c) {
-                $this->pdo->exec('ALTER TABLE `'.$this->table.'` add `'.$c.'` TEXT NULL DEFAULT NULL;');
+                $this->pdo->exec('ALTER TABLE `' . $this->table . '` add `' . $c . '` TEXT NULL DEFAULT NULL;');
             }
         }
 
@@ -183,15 +185,15 @@ class MySQLHandler extends AbstractProcessingHandler
 
         //'context' contains the array
         $contentArray = array_merge(array(
-                                        'channel' => $record['channel'],
-                                        'level' => $record['level'],
-                                        'message' => $record['message'],
-                                        'time' => $record['datetime']->format('U')
-                                    ), $record['context']);
+            'channel' => $record['channel'],
+            'level' => $record['level'],
+            'message' => $record['message'],
+            'date' => $record['datetime']->format('c'),
+        ), $record['context']);
 
         // unset array keys that are passed put not defined to be stored, to prevent sql errors
-        foreach($contentArray as $key => $context) {
-            if (! in_array($key, $this->fields)) {
+        foreach ($contentArray as $key => $context) {
+            if (!in_array($key, $this->fields)) {
                 unset($contentArray[$key]);
                 unset($this->fields[array_search($key, $this->fields)]);
                 continue;
@@ -205,12 +207,12 @@ class MySQLHandler extends AbstractProcessingHandler
 
         $this->prepareStatement();
 
-	    //Remove unused keys
-	    foreach($this->additionalFields as $key => $context) {
-		    if(! isset($contentArray[$key])) {
-			    unset($this->additionalFields[$key]);
-		    }
-	    }
+        //Remove unused keys
+        foreach ($this->additionalFields as $key => $context) {
+            if (!isset($contentArray[$key])) {
+                unset($this->additionalFields[$key]);
+            }
+        }
 
         //Fill content array with "null" values if not provided
         $contentArray = $contentArray + array_combine(
